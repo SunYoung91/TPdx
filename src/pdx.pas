@@ -42,18 +42,13 @@
  ***************************************************************************
 }
 unit pdx;
-
 {$IFDEF FPC}
   {$mode DELPHI}
 {$ENDIF}
-
 {$H+}
-
 interface
-
 uses
   DB, Classes, SysUtils, Forms, conv;
-
 const
   { Paradox codes for field types }
   pxfAlpha        = $01;
@@ -73,32 +68,25 @@ const
   pxfAutoInc      = $16;
   pxfBCD          = $17;
   pxfBytes        = $18;
-
 type
-
 {$IFDEF FPC}
   TRecordBuffer = PAnsiChar;
 {$ELSE}
   TRecordBuffer = PByte;
 {$ENDIF}
-
   { Information about field }
-
   PFldInfoRec = ^TFldInfoRec;
   TFldInfoRec = packed record
     fType: byte;
     fSize: byte;
   end;
-
   PDataBlock = ^TDataBlock;
   TDataBlock = packed record
     nextBlock : word;
     blockNumber : word;
     addDataSize : word;
   end;
-
   { Header of file }
-
   PPxHeader = ^TPxHeader;
   TPxHeader = packed record
     recordSize              :  word;
@@ -143,7 +131,6 @@ type
     refIntegrity            :  byte;
     unknown56x57            :  array[$0056..$0057] of byte;
   end;
-
   PPxDataHeader = ^TPxDataHeader;
   TPxDataHeader = packed record
     { Возможно идентификатор версии файла
@@ -164,33 +151,28 @@ type
     ChangeCount4 : word;
     Unknown72x77 : array[$0072..$0077] of byte;
   end;
-
   TPxRecordHeader = packed record
     RecordIndex: integer;
     BookmarkFlag: TBookmarkFlag;
   end;
   PPxRecordHeader=^TPxRecordHeader;
-
   TPxBlob = packed record {10-byte Blob Info Block}
     FileLoc: Integer;
     Length: Integer;
     ModCnt: Word;
   end;
-
   TPxBlobIdx = packed record {Blob Pointer Array Entry}
     Offset: Byte;
     Len16: Byte;
     ModCnt: Word;
     Len: Byte;
   end;
-
   TPdxLang = record
     Name: string[20];
     SortOrder: byte;
     CodePage: word;
     SortOrderID: string[8];
   end;
-
 const
   PdxLangTable: array[1..118] of TPdxLang =
     ((Name: 'Access General';        SortOrder: 161; CodePage: 1252; SortOrderID: 'ACCGEN'),
@@ -311,13 +293,9 @@ const
      (Name: 'Sybase SQL Dic437';     SortOrder: 209; CodePage: 437;  SortOrderID: 'SYDC437'),
      (Name: 'Sybase SQL Dic850';     SortOrder: 208; CodePage: 850;  SortOrderID: 'SYDC850'),
      (Name: '''WEurope'' ANSI';      SortOrder: 64;  CodePage: 1252; SortOrderID: 'DBWINWE0'));
-
 type
-
   TEncodeEvent = function(Sender: TObject; Field: TField; s: string): string of object;
-
   { TPdx }
-
   TPdx = class(TDataSet)
   protected
   
@@ -332,20 +310,15 @@ type
     procedure InternalOpen; override;
     function IsCursorOpen: Boolean; override;
     procedure InternalClose; override;
-
     function GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function AllocRecordBuffer: TRecordBuffer; override;
     procedure FreeRecordBuffer(var Buffer: TRecordBuffer); override;
     procedure InternalInitRecord(Buffer: TRecordBuffer); override;
-
     procedure InternalFirst; override;
     procedure InternalLast; override;
     procedure InternalSetToRecord(Buffer: TRecordBuffer); override;
-
     function GetCanModify: Boolean; override;
-
     function GetRecordCount: Integer; override;
-
     procedure SetRecNo(Value: Integer); override;
     function GetRecNo: Integer; override;
     //Здесь номер записи считается от 1
@@ -378,9 +351,7 @@ type
   public
     constructor Create(AOwner:TComponent); override;
     destructor Destroy; override;
-
     function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean;override;
-
     function CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream; override;
     property PxHeader: TPxHeader read fPxHeader;
     property PxDataHeader: TPxDataHeader read fPxDataHeader;
@@ -425,16 +396,13 @@ type
   end;
   
   EParadoxError = class(Exception);
-
 implementation
-
 { TPdx }
 {
 procedure TPdx.GetBookmarkData(Buffer: TRecordBuffer; Data: Pointer);
 begin
   //inherited GetBookmarkData(Buffer, Data);
 end;}
-
 function TPdx.GetBookmarkFlag(Buffer: TRecordBuffer): TBookmarkFlag;
 begin
   result := PPxRecordHeader(Buffer)^.BookmarkFlag;
@@ -443,14 +411,12 @@ end;
 procedure TPdx.InternalGotoBookmark(ABookmark: Pointer);
 var
   Pos:integer;
-
 begin
   if not assigned(FPerformFindBookmark) then exit;
   
   Pos := FPerformFindBookmark(string(Bookmark));
   if Pos > -1 then FCursor := Pos;
 end;}
-
 procedure TPdx.SetBookmarkFlag(Buffer: TRecordBuffer; Value: TBookmarkFlag);
 begin
   PPxRecordHeader(Buffer)^.BookmarkFlag := Value;
@@ -465,25 +431,20 @@ procedure TPdx.InternalHandleException;
 begin
   Application.HandleException(Self);
 end;
-
 procedure TPdx.InternalInitFieldDefs;
 var
   i: integer;
   p, start: longint;
   ch: byte;
   s: string;
-
 begin
   if (fPxHeader.fileVersionID >= $05) then
     p := $78
   else
     p := $58;
-
   fStream.Seek(p, soFromBeginning);
-
   SetLength(fPxFields, fPxHeader.numFields);
   SetLength(fPxFldStart, fPxHeader.numFields);
-
   start := 0;
   FieldDefs.Clear;
   for i := 0 to fPxHeader.numFields - 1 do
@@ -492,14 +453,12 @@ begin
     fStream.Read(fPxFields[i], SizeOf(TFldInfoRec));
     start := start + fPxFields[i].fSize;
   end;
-
   p := p + fPxHeader.numFields*SizeOf(TFldInfoRec) + 4 + fPxHeader.numFields*4;
   // TableName size
   if (fPxHeader.fileVersionID >= $0C) then
     p := p + 261
   else
     p := p + 79;
-
   fStream.Seek(p, soFromBeginning);
   for i := 0 to fPxHeader.numFields - 1 do
   begin
@@ -512,7 +471,6 @@ begin
       {$ENDIF}
       if (ch <> 0) then s := s + chr(ch);
     until ch = 0;
-
     case fPxFields[i].fType of
       pxfAlpha, pxfMemoBLOb, pxfBLOb, pxfFmtMemoBLOb, pxfOLE, pxfGraphic :
         FieldDefs.Add(s, NativeToFieldType(fPxFields[i].fType), fPxFields[i].fSize, false);
@@ -520,7 +478,6 @@ begin
       FieldDefs.Add(s, NativeToFieldType(fPXFields[i].fType));
     end;
   end;
-
   if not fEncrypted then
   begin
     p := fPxHeader.numFields*2;
@@ -529,7 +486,6 @@ begin
   begin
     // Здесь нужно рассчитать смещение для зашифрованного файла
   end;
-
   fStream.Seek(p, soFromCurrent);
   s := '';
   repeat
@@ -541,14 +497,11 @@ begin
     if (ch <> 0) then s := s + chr(ch);
   until ch = 0;
   fSortOrderID := s;
-
   fLanguageID := DetectLang;
 end;
-
 procedure TPdx.InternalOpen;
 begin
   if TableName = '' then raise EParadoxError.CreateFmt('TableName is not set', []);
-
   try
     fStream := TFileStream.Create(TableName, fmOpenRead );
   except
@@ -556,9 +509,7 @@ begin
   end;
   
   fStream.Read(fPxHeader, SizeOf(fPxHeader));
-
   if (fPxHeader.fileType <> 0) and (fPxHeader.fileType <> 2) then raise EParadoxError.CreateFmt('"%s" - is not .DB data file', [fTableName]);
-
   if (fPxHeader.fileVersionID >= $05) then
   begin
     fStream.Read(fPxDataHeader, SizeOf(fPxDataHeader));
@@ -570,26 +521,22 @@ begin
     if fPxHeader.Encryption1 <> 0 then fEncrypted := true
                                   else fEncrypted := false;
   end;
-
   try
     if FileExists(ChangeFileExt(TableName,'.mb')) then
       fBlobStream := TFileStream.Create(ChangeFileExt(TableName,'.mb'), fmOpenRead );
   except
     fBlobStream := nil;
   end;
-
   InternalInitFieldDefs;
   if DefaultFields then CreateFields;
   BindFields(true); //Привязываем поля к БД
   fIsOpen := true;
   fCursor := 0;
 end;
-
 function TPdx.IsCursorOpen: Boolean;
 begin
   Result := fIsOpen;
 end;
-
 procedure TPdx.InternalClose;
 begin
   BindFields(False); //Отвязываем поля
@@ -600,7 +547,6 @@ begin
   
   fLanguageID := 0;
 end;
-
 function TPdx.GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
 var
   i: word;
@@ -644,60 +590,48 @@ begin
   end;
   if (result = grError) and DoCheck then DatabaseError('Error in GetRecord()');
 end;
-
 function TPdx.AllocRecordBuffer: TRecordBuffer;
 begin
   Result := nil;
   GetMem(Result, SizeOf(TPxRecordHeader) + fPxHeader.recordSize);
 end;
-
 procedure TPdx.FreeRecordBuffer(var Buffer: TRecordBuffer);
 begin
   FreeMem(Pointer(Buffer), SizeOf(TPxRecordHeader) + fPxHeader.recordSize);
 end;
-
 procedure TPdx.InternalInitRecord(Buffer: TRecordBuffer);
 begin
-
 end;
-
 procedure TPdx.InternalFirst;
 begin
   fCursor := 0;
 end;
-
 procedure TPdx.InternalLast;
 begin
   fCursor :=  RecordCount + 1;
 end;
-
 procedure TPdx.InternalSetToRecord(Buffer: TRecordBuffer);
 begin
   FCursor := PPxRecordHeader(Buffer)^.RecordIndex;
 end;
-
 function TPdx.GetCanModify: Boolean;
 begin
   Result := false;
 end;
-
 function TPdx.GetRecordCount: Integer;
 begin
   Result := fPxHeader.numRecords;
 end;
-
 procedure TPdx.SetRecNo(Value: Integer);
 begin
   if (Value < 1) or (Value >= RecordCount + 1) then exit;
   FCursor := Value;
   Resync([]);
 end;
-
 function TPdx.GetRecNo: Integer;
 begin
   Result:=PPxRecordHeader(ActiveBuffer)^.RecordIndex;
 end;
-
 procedure TPdx.SetTableName(const AValue: string);
 begin
   if fTableName <> AValue then
@@ -706,7 +640,6 @@ begin
     fTableName := AValue;
   end;
 end;
-
 function TPdx.GetLanguage: string;
 begin
   if (fLanguageID > 0) and (fLanguageID <= 118) then
@@ -714,11 +647,9 @@ begin
   else
     Result := '';
 end;
-
 procedure TPdx.SetLanguage(const AValue: string);
 var
   i: integer;
-
 begin
   if Active then
   begin
@@ -736,7 +667,6 @@ begin
     fLanguageID := 0;
   end;
 end;
-
 function TPdx.NativeToFieldType(NativeType: byte): TFieldType;
 begin
   Result := ftUnknown;
@@ -760,7 +690,6 @@ begin
     pxfBytes : Result := ftBytes;
   end;
 end;
-
 function TPdx.ReadDataBlock(BlockNum: Word): TDataBlock;
 begin
   if (BlockNum < 1) or (BlockNum > fPxHeader.fileBlocks) then
@@ -768,11 +697,9 @@ begin
   fStream.Seek((BlockNum - 1)*fPxHeader.maxTableSize*1024 + fPxHeader.headerSize, soFromBeginning);
   fStream.ReadBuffer(Result, SizeOf(TDataBlock));
 end;
-
 function TPdx.DetectLang: integer;
 var
   i: integer;
-
 begin
   Result := 0;
   for i := 1 to 118 do
@@ -795,11 +722,9 @@ begin
     end;
   end;
 end;
-
 function TPdx.EncodingField(s: string; Field: TField): string;
 begin
   Result := s;
-
   if Assigned(fOnEncode) then
   begin
     Result := fOnEncode(Self, Field, s);
@@ -810,19 +735,16 @@ begin
     Result := EncodingString(s);
   end;  
 end;
-
 constructor TPdx.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   fCodepage := GetCodepage;
   fEncodingMemo := true;
 end;
-
 destructor TPdx.Destroy;
 begin
   inherited Destroy;
 end;
-
 function TPdx.GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean;
 var
   p: array of AnsiChar;
@@ -831,20 +753,15 @@ var
   IsNull: boolean;
   s: string;
   c : Cardinal;
-
 begin
   if Buffer = nil then
   begin
-    Result := false;
+    Result := True;
     exit;
   end;
-
   result := true;
-
   SetLength(p, fPxFields[Field.FieldNo - 1].fSize);
-
   src := Pointer(ActiveBuffer + SizeOf(TPxRecordHeader) + fPxFldStart[Field.FieldNo - 1]);
-
   IsNull := true;
   if fPxFields[Field.FieldNo - 1].fType in [2..6, $14..$16] then
   begin
@@ -853,14 +770,11 @@ begin
       p[i] := PAnsiChar(src + fPxFields[Field.FieldNo - 1].fSize - i - 1)^;
       if Ord(p[i]) <> 0 then IsNull := false;
     end;
-
 //  GJK:Using a loop var outside the loop can cause (in Delphi) strange behavior
 //    p[i] := Chr(Ord(p[i]) xor $80);
     p[fPxFields[Field.FieldNo - 1].fSize - 1] := AnsiChar(Ord(p[fPxFields[Field.FieldNo - 1].fSize - 1]) xor $80);
-
     if IsNull then begin result := false; exit; end;
   end;
-
   case fPxFields[Field.FieldNo - 1].fType of
     pxfAlpha :
       begin
@@ -887,7 +801,6 @@ begin
     result := false;
   end;
 end;
-
 function TPdx.CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream;
 var
   bStream: TMemoryStream;
@@ -898,26 +811,21 @@ var
   idx: byte;
   loc: Integer;
   Buffer : PAnsiChar;
-
 begin
   bStream := TMemoryStream.Create;
   Result := bStream;
-
   if (Mode = bmRead) then
   begin
     src := Pointer(ActiveBuffer + SizeOf(TPxRecordHeader) + fPxFldStart[Field.FieldNo - 1]);
     header := src + Field.Size - SizeOf(TPxBlob);
     move(header^, bl, SizeOf(bl));
-
     if bl.Length = 0 then exit;
-
     if bl.Length > Field.Size - SizeOf(TPxBlob) then
     begin
       if fBlobStream <> nil then
       begin
         idx := bl.FileLoc and $FF;
         loc := bl.FileLoc and $FFFFFF00;
-
         if idx = $FF then
         begin {Read from a Single Blob Block}
           fBlobStream.Seek(loc + 9, soFromBeginning);
@@ -925,9 +833,7 @@ begin
           begin
             SetLength(s, bl.Length);
             fBlobStream.Read(s[1], bl.Length);
-
             if EncodingMemo then s := EncodingField(s, Field);
-
             bStream.Write(s[1], Length(s));
           end
           else
@@ -940,14 +846,11 @@ begin
           fBlobStream.Seek(loc + 12 + 5*idx, soFromBeginning);
           fBlobStream.Read(bi, SizeOf(TPxBlobIdx));
           fBlobStream.Seek(loc + 16*bi.Offset, soFromBeginning);
-
           if Field.DataType = ftMemo then
           begin
             SetLength(s, bl.Length);
             fBlobStream.Read(s[1], bl.Length);
-
             if EncodingMemo then s := EncodingField(s, Field);
-
             bStream.Write(s[1], Length(s));
           end
           else
@@ -961,7 +864,6 @@ begin
     begin
       if Field.DataType = ftMemo then
       begin
-
         StrLCopy( Buffer,PAnsiChar(src),  bl.Length);
         s := Buffer;
         bStream.Write(s[1], Length(s));
@@ -975,7 +877,6 @@ begin
     bStream.Position := 0;
   end;
 end;
-
 function TPdx.EncodingString(s: string): string;
 begin
   Result := s;
@@ -993,6 +894,4 @@ begin
       end;
   end;
 end;
-
 end.
-
